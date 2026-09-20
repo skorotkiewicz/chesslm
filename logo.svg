@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="200" viewBox="0 0 640 200" fill="none" role="img" aria-labelledby="title description">
+  <title id="title">chesslm</title>
+  <desc id="description">A mint chess knight with connected evaluation nodes beside the chesslm wordmark on a dark background.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="640" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#162B2B"/>
+      <stop offset="1" stop-color="#10171F"/>
+    </linearGradient>
+    <linearGradient id="knight" x1="63" y1="45" x2="154" y2="155" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#BDFFE0"/>
+      <stop offset="1" stop-color="#59D9B2"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="638" height="198" rx="28" fill="url(#background)" stroke="#304348" stroke-width="2"/>
+  <rect x="29" y="29" width="142" height="142" rx="24" fill="#172F30" stroke="#37524F"/>
+  <path d="M66 143C65 127 73 117 90 104L74 105L58 91L87 63L90 44L109 57C134 61 149 84 145 111L140 143H66Z" fill="url(#knight)"/>
+  <path d="M65 152H144" stroke="#9AF2CE" stroke-width="8" stroke-linecap="round"/>
+  <path d="M110 85V105L124 119V135" stroke="#204A43" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="110" cy="83" r="5" fill="#173D37"/>
+  <circle cx="124" cy="121" r="5" fill="#173D37"/>
+  <circle cx="89" cy="79" r="4" fill="#173D37"/>
+  <path d="M83 91L76 96" stroke="#204A43" stroke-width="3" stroke-linecap="round"/>
+  <text x="204" y="111" fill="#F1F7F5" font-family="Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="64" font-weight="700" letter-spacing="-3">chess<tspan fill="#8CECC7">lm</tspan></text>
+  <text x="208" y="143" fill="#ACBFBD" font-family="ui-monospace, 'SFMono-Regular', Consolas, monospace" font-size="13" letter-spacing="2">SMALL MODEL. YOUR MOVE.</text>
+  <g fill="#8CECC7" opacity="0.16">
+    <rect x="552" y="36" width="20" height="20" rx="4"/>
+    <rect x="576" y="60" width="20" height="20" rx="4"/>
+    <rect x="552" y="84" width="20" height="20" rx="4"/>
+    <rect x="576" y="108" width="20" height="20" rx="4"/>
+    <rect x="552" y="132" width="20" height="20" rx="4"/>
+  </g>
+</svg>

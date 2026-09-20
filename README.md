@@ -1,132 +1,219 @@
-# Tiny chess model
+<p align="center">
+  <img src="logo.svg" alt="chesslm — Small model. Your move." width="640">
+</p>
 
-A 100,353-parameter evaluator with alpha-beta search. Its float32 weights occupy
-401,412 bytes, plus a small NPZ header. It uses NumPy and python-chess, not a
-language model or GPU framework.
+<h1 align="center">chesslm</h1>
 
-The game uses a supplied `model.npz`; its training history and strength are not
-verified here. The game and local checks do not run training or Stockfish data
-generation. Search tests use hand-set zero weights; a derivative check uses
-random weights without optimization. Passing these tests does not establish Elo.
+<p align="center">
+  A tiny neural chess evaluator with alpha-beta search and a desktop chess game.
+</p>
 
-## Setup on the training machine
+<p align="center">
+  <a href="#quick-start"><img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&amp;logo=python&amp;logoColor=white" alt="Python 3.10 or newer"></a>
+  <a href="#how-it-works"><img src="https://img.shields.io/badge/parameters-100%2C353-59D9B2?style=flat-square" alt="100,353 parameters"></a>
+  <a href="#how-it-works"><img src="https://img.shields.io/badge/weights-392_KiB-59D9B2?style=flat-square" alt="392 KiB of model weights"></a>
+  <a href="requirements.txt"><img src="https://img.shields.io/badge/runtime-NumPy-4DABCF?style=flat-square&amp;logo=numpy&amp;logoColor=white" alt="NumPy runtime"></a>
+</p>
 
-Use Python 3.10 or newer. Copy this project and the supplied Stockfish directory.
-Keep Stockfish's license files with its binary when redistributing it.
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#desktop-game">Desktop game</a> ·
+  <a href="#training">Training</a> ·
+  <a href="#benchmarking">Benchmarking</a> ·
+  <a href="#development">Development</a>
+</p>
+
+chesslm combines a small NumPy network with a fixed material evaluator to choose
+chess moves. Play against the included `model.npz` in a Tkinter window, or request
+a move from the command line. Playing uses your CPU and requires no Stockfish
+process. Stockfish supplies training labels and benchmark comparisons.
+
+The network has 100,353 parameters and 401,412 bytes of float32 weights, about
+392 KiB. Despite the name, it is not a language model. The included checkpoint's
+training history and playing strength have not been verified; no Elo is claimed.
+
+## Quick start
+
+Use Python 3.10 or newer. Run these commands in a POSIX shell:
 
 ```sh
+git clone https://github.com/skorotkiewicz/chesslm.git
+cd chesslm
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install -r requirements.txt
+python chess_game.py
 ```
 
-The default teacher is `stockfish/stockfish-linux-x86-64-universal`, resolved
-relative to `chesslm.py`. It requires x86-64 Linux. Use `--engine /path/to/stockfish`
-for another location or a platform-compatible binary.
+The desktop game needs Tkinter and a display. Some Linux distributions provide
+Tkinter separately in a package named `python3-tk` or `tk`. On Windows, activate
+the environment with `.venv\Scripts\Activate.ps1` in PowerShell.
 
-## Generate and train elsewhere
-
-These commands are examples to run manually on the training machine. Nothing
-starts automatically. Output files must not already exist.
+For a terminal-only first move, run this from the project directory:
 
 ```sh
-python chesslm.py generate --positions 100000 --nodes 20000 --threads 2 --output positions.jsonl
-OPENBLAS_NUM_THREADS=2 python chesslm.py train --data positions.jsonl --epochs 30 --output model.npz
+OPENBLAS_NUM_THREADS=1 python chesslm.py play --model model.npz
 ```
 
-Stockfish labels self-play positions with White's centipawn evaluation. Each
-position uses a three-line search. Opening choices vary among those lines, with
-occasional variation later. Search nodes bound teacher work, not elapsed time.
-Generation time depends on the training machine. No time estimate is measured.
+The `OPENBLAS_NUM_THREADS=1` prefix limits OpenBLAS threading for the small
+network. In PowerShell, set `$env:OPENBLAS_NUM_THREADS = "1"` before running the
+Python command. The desktop game sets this default automatically.
 
-The model takes 12 piece planes plus turn, castling rights, legal en passant
-file, and halfmove clock. A 128-unit tanh hidden layer learns a correction to a
-fixed material evaluator. The output is `tanh(centipawns / 600)`. Mate labels use
-+/-10,000 centipawns. Training minimizes squared error with Adam and saves the
-lowest validation-loss weights, including the initial weights if no epoch helps.
-
-Validation holds out entire games and removes positions shared with those games
-from training. At least two games and some distinct positions are required.
-The dataset is loaded into memory, roughly 313 MB of input arrays per 100,000
-positions plus JSON rows and temporary arrays. Larger corpora need more RAM.
-
-## Play without Stockfish
-
-Copy the resulting `model.npz` back to the playing machine, then run:
+## Desktop game
 
 ```sh
-OPENBLAS_NUM_THREADS=1 .venv/bin/python chesslm.py play --model model.npz --depth 3 --max-nodes 20000
+python chess_game.py
+python chess_game.py --color black
+python chess_game.py --model model.npz --depth 3 --max-nodes 20000
 ```
 
-Add `--fen '...'` to choose a move in another position. The command returns JSON
-with a UCI move and visited node count. It returns `null` for an ended game.
-This is a one-move CLI, not a UCI engine server. No Stockfish process runs during
-play. Model weights fit under 0.5 MB; Python, NumPy, and process memory do not.
+Click a piece, then its destination. Dots and rings mark legal moves, and buttons
+let you choose a promotion piece. Use arrow keys and Enter or Space to move with
+the keyboard; Tab reaches the buttons. Playing as Black flips the board.
 
-Search uses iterative deepening, capture ordering, and four quiescence plies.
-A node limit can leave only a shallow completed iteration, or a legal fallback
-if no iteration completes. Long tactics remain a limitation. Automatic draws
-are recognized; claiming optional draws is not implemented. A FEN cannot carry
-prior repetition history.
+Search runs in a background thread, so the window can redraw and close while the
+model thinks. New game becomes available after the search finishes. The default
+checkpoint is `model.npz` beside the script.
 
-## Desktop chess game
-
-Run the Tkinter game with your existing `model.npz`. It does not run Stockfish,
-generate positions, or train. The model file defaults to the script's directory.
+If you use `uv`, you can also launch the game without setting up `.venv`:
 
 ```sh
 uv run --python /usr/bin/python chess_game.py
-# Play as Black, with the board flipped:
 uv run --python /usr/bin/python chess_game.py --color black
 ```
 
-`uv` installs the script's declared NumPy and python-chess dependencies into an
-isolated script environment, independently of `.venv`. With a working environment
-containing `requirements.txt`, you can instead run `python chess_game.py`.
-Tkinter and a desktop display are required;
-some Linux distributions package Tkinter separately as `python3-tk` or `tk`.
+These examples use a Linux system Python with Tkinter installed. Choose a
+Python with Tkinter on your platform. `uv` installs the script's declared NumPy
+and python-chess dependencies in an isolated environment.
 
-Click your piece, then its destination. Dots and rings mark legal moves. Choose
-a piece when promoting. The board also accepts arrow keys and Enter when focused;
-Tab reaches the buttons. New game becomes available after the model finishes
-thinking. Automatic draws end the game; optional draw claims are not implemented.
-
-Use `--model /path/to/model.npz`, `--depth 3`, or `--max-nodes 20000` to change
-the checkpoint or search budget. Search runs in a background thread, so the
-window can redraw and close while the model thinks.
-
-Run all checks, including the GUI checks, without training:
+## Command-line play
 
 ```sh
-uv run --isolated --no-project --python /usr/bin/python --with numpy --with python-chess python -m unittest -v
+OPENBLAS_NUM_THREADS=1 python chesslm.py play \
+  --model model.npz --depth 3 --max-nodes 20000
 ```
 
-GUI tests skip when no desktop display is available.
+The command prints JSON with `move`, a UCI move string such as `e2e4`, and `nodes`,
+the visited node count. When the game has ended, `move` is `null`. Add
+`--fen '...'` with a valid FEN to choose a move in another position.
 
-## Measure strength on the training machine
+This command chooses one move per invocation; it does not implement a UCI engine
+server. CLI model paths are relative to your working directory.
+
+## How it works
+
+| Component | Implementation |
+| --- | --- |
+| Input | 782 features: 12 piece planes, side to move, castling rights, legal en passant file, and halfmove clock |
+| Network | One 128-unit tanh hidden layer, learning a correction to a fixed material evaluator |
+| Target | White's evaluation, transformed with `tanh(centipawns / 600)` |
+| Training | Mean squared error with Adam; save the weights with the lowest validation loss |
+| Search | Iterative deepening, alpha-beta pruning, capture ordering, and four quiescence plies |
+| Runtime | NumPy and python-chess on CPU |
+
+The weight size excludes the NPZ header, Python, NumPy, and process memory.
+
+A node limit can leave only a shallow completed search iteration. If none
+finishes, search returns a legal fallback move. Long tactics remain a limitation.
+The game and search recognize automatic draws but do not implement optional draw
+claims. A FEN does not include prior repetition history.
+
+## Training
+
+Training is optional. The included checkpoint is enough to play.
+
+Data generation and benchmarking require a Stockfish executable. Stockfish is
+not tracked in this repository. The default path is
+`stockfish/stockfish-linux-x86-64-universal`, relative to `chesslm.py`, for x86-64
+Linux. Supply `--engine /path/to/stockfish` to use another location or a binary
+for your platform.
+
+Run these commands on your training machine. Output files must not already
+exist; `model-trained.npz` leaves the included checkpoint available.
+
+```sh
+python chesslm.py generate \
+  --engine /path/to/stockfish \
+  --positions 100000 --nodes 20000 --threads 2 \
+  --output positions-train.jsonl
+
+OPENBLAS_NUM_THREADS=2 python chesslm.py train \
+  --data positions-train.jsonl --epochs 30 --output model-trained.npz
+```
+
+Stockfish labels self-play positions with White's centipawn evaluation using a
+three-line search. Opening choices vary among those lines, with occasional
+variation later. Mate labels use ±10,000 centipawns. The node budget bounds
+Stockfish's search work, not elapsed time.
+
+Validation holds out entire games and removes positions shared with those games
+from training. A dataset needs at least two games and some distinct positions.
+Training saves the initial weights if no epoch improves validation loss.
+
+The dataset is loaded into memory. Input arrays need roughly 313 MB per 100,000
+positions, plus JSON rows and temporary arrays. Larger datasets need more RAM.
+
+Copy `model-trained.npz` to your playing machine and select it explicitly:
+
+```sh
+python chess_game.py --model model-trained.npz
+```
+
+## Benchmarking
 
 Generate a separate corpus with a different seed. Do not train on this file.
+Use fresh output filenames if you repeat the workflow.
 
 ```sh
-python chesslm.py generate --seed 9001 --positions 5000 --nodes 20000 --output benchmark.jsonl
-OPENBLAS_NUM_THREADS=1 python chesslm.py benchmark --model model.npz --data benchmark.jsonl --positions 100 --nodes 50000
+python chesslm.py generate \
+  --engine /path/to/stockfish \
+  --seed 9001 --positions 5000 --nodes 20000 \
+  --output positions-benchmark.jsonl
+
+OPENBLAS_NUM_THREADS=1 python chesslm.py benchmark \
+  --engine /path/to/stockfish \
+  --model model-trained.npz --data positions-benchmark.jsonl \
+  --positions 100 --nodes 50000
 ```
 
-The report gives best-move agreement and mean centipawn loss against Stockfish.
-These are noisy, node-limited estimates, not Elo. Different seeds can still
-produce repeated openings. Match testing is needed before making strength
-claims. A tiny distilled model should not be expected to match Stockfish.
+The JSON report contains the position count, best-move agreement, and mean
+centipawn loss against Stockfish. These are noisy, node-limited estimates.
+Different seeds can still produce repeated openings, and match testing is
+needed to establish an Elo rating. A tiny distilled model should not be expected
+to match Stockfish.
 
-## Local checks, no training
+## Development
+
+From an environment containing `requirements.txt`, run:
 
 ```sh
-OPENBLAS_NUM_THREADS=1 .venv/bin/python -m unittest -v
-.venv/bin/python chesslm.py --help
+OPENBLAS_NUM_THREADS=1 python -m unittest -v
+python chesslm.py --help
+python chess_game.py --help
 ```
 
-Checks cover encoding, checkpoint size and loading, gradient math, invalid
-positions, held-out game separation, node limits, promotions, check evasion,
-forced mates, and a free queen capture. They do not invoke data generation,
-the optimizer, or Stockfish.
-The generation and training commands still require end-to-end verification on
-the training machine.
+Tests cover encoding, checkpoint size and loading, gradient math, invalid
+positions, validation separation, node limits, promotions, check evasion,
+forced mates, a free queen capture, and desktop interactions. GUI tests skip
+when no display is available.
+
+The tests do not run Stockfish, generate data, or optimize model weights. Search
+tests use hand-set zero weights; the derivative check uses random weights
+without optimization. Passing them does not measure the supplied checkpoint's
+strength. Generation and training still need end-to-end verification on the
+training machine.
+
+## Project files
+
+| File | Purpose |
+| --- | --- |
+| [`chesslm.py`](chesslm.py) | Model, search, data generation, training, and benchmark CLI |
+| [`chess_game.py`](chess_game.py) | Tkinter desktop game |
+| [`model.npz`](model.npz) | Included checkpoint for play |
+| [`requirements.txt`](requirements.txt) | Runtime dependencies |
+| [`test_chesslm.py`](test_chesslm.py) | Model and search checks |
+| [`test_chess_game.py`](test_chess_game.py) | Desktop game checks |
+
+## License
+
+MIT.
