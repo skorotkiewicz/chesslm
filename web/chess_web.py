@@ -23,6 +23,8 @@ from chesslm import Model, choose_move, positive
 from chess_position import position, replay
 
 PAGE = Path(__file__).with_name("chess_web.html")
+# Same-origin assets the page loads besides itself, with their real types.
+ASSETS = {"/neko.js": ("neko.js", "application/javascript")}
 
 
 class ChessServer(ThreadingHTTPServer):
@@ -65,8 +67,14 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.local_request():
             return
+        asset = ASSETS.get(self.path.split("?")[0])
         if self.path == "/":
             self.send(200, self.server.page, "text/html")
+        elif asset:
+            try:
+                self.send(200, (PAGE.parent / asset[0]).read_bytes(), asset[1])
+            except OSError:
+                self.send(404, {"error": "Not found"})
         else:
             self.send(404, {"error": "Not found"})
 

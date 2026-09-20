@@ -60,7 +60,11 @@ class WebTests(unittest.TestCase):
         self.assertIn(b'<div id="board"', body)
         self.assertIn(b'neko.js', body)
         self.assertIn("Content-Security-Policy", dict(headers))
-        for path in ("/model.npz", "/../chesslm.py", "/positions.jsonl"):
+        status, body, headers = self.request("GET", "/neko.js")
+        self.assertEqual(status, 200)
+        self.assertTrue(headers["Content-Type"].startswith("application/javascript"))
+        self.assertIn(b"chases your cursor", body)
+        for path in ("/model.npz", "/../chesslm.py", "/positions.jsonl", "/chess_web.py", "/chess.zip", "/nope.js"):
             self.assertEqual(self.request("GET", path)[0], 404)
 
     def test_legal_state_and_ai_reply(self):
