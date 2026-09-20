@@ -93,9 +93,9 @@ and python-chess dependencies in an isolated environment.
 <summary id="web-game">Web game</summary>
 
 ```sh
-python chess_web.py
+python web/chess_web.py
 # Or use an isolated uv environment:
-uv run --python /usr/bin/python chess_web.py
+uv run --python /usr/bin/python web/chess_web.py
 ```
 
 Open **http://127.0.0.1:8000** in your browser. Choose White or Black, then click
@@ -137,7 +137,7 @@ responsive while the worker searches. Refreshing discards the game.
 To preview the Pages build locally, use an environment with `requirements.txt`:
 
 ```sh
-python build_pages.py
+python web/build_pages.py
 python -m http.server 8001 --bind 127.0.0.1 --directory _site
 ```
 
@@ -251,7 +251,7 @@ From an environment containing `requirements.txt`, run:
 OPENBLAS_NUM_THREADS=1 python -m unittest -v
 python chesslm.py --help
 python chess_game.py --help
-python chess_web.py --help
+python web/chess_web.py --help
 ```
 
 Tests cover encoding, checkpoint size and loading, gradient math, invalid
@@ -271,12 +271,12 @@ training machine.
 | --- | --- |
 | [`chesslm.py`](chesslm.py) | Model, search, data generation, training, and benchmark CLI |
 | [`chess_game.py`](chess_game.py) | Tkinter desktop game |
-| [`chess_web.py`](chess_web.py) | Local HTTP server and validated game API |
-| [`chess_web.html`](chess_web.html) | Browser chess board |
+| [`web/chess_web.py`](web/chess_web.py) | Local HTTP server and validated game API |
+| [`web/chess_web.html`](web/chess_web.html) | Browser chess board |
 | [`test_chess_web.py`](test_chess_web.py) | HTTP, rule, request-validation, and static-build checks |
-| [`chess_position.py`](chess_position.py) | Shared move validation and board responses |
-| [`chess_worker.js`](chess_worker.js) | Browser-side model inference with Pyodide |
-| [`build_pages.py`](build_pages.py) | Static site build, including the unchanged model |
+| [`web/chess_position.py`](web/chess_position.py) | Shared move validation and board responses |
+| [`web/chess_worker.js`](web/chess_worker.js) | Browser-side model inference with Pyodide |
+| [`web/build_pages.py`](web/build_pages.py) | Static site build, including the unchanged model |
 | [`model.npz`](model.npz) | Included checkpoint for play |
 | [`requirements.txt`](requirements.txt) | Runtime dependencies |
 | [`test_chesslm.py`](test_chesslm.py) | Model and search checks |

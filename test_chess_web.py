@@ -10,9 +10,9 @@ from unittest.mock import patch
 
 import chess
 
-from build_pages import ROOT, build
-from chess_position import position, replay
-from chess_web import ChessServer
+from web.build_pages import build
+from web.chess_position import position, replay
+from web.chess_web import ChessServer
 
 
 class WebTests(unittest.TestCase):
@@ -42,7 +42,7 @@ class WebTests(unittest.TestCase):
     def test_static_build_keeps_checkpoint_and_bundles_rules(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
-            build(output, ROOT / "model.npz")
+            build(output, Path("model.npz"))
             self.assertEqual((output / "model.npz").read_bytes(), (ROOT / "model.npz").read_bytes())
             self.assertIn('name="chess-runtime" content="browser"', (output / "index.html").read_text())
             self.assertTrue((output / "chess_worker.js").is_file())

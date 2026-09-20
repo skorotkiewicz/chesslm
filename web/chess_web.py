@@ -14,6 +14,11 @@ from zipfile import BadZipFile
 
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 
+import sys
+
+# Running from the repository root needs the parent directory for chesslm.py;
+# sibling imports need this directory.
+sys.path.extend((str(Path(__file__).resolve().parent), str(Path(__file__).resolve().parent.parent)))
 from chesslm import Model, choose_move, positive
 from chess_position import position, replay
 
@@ -106,7 +111,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", type=Path, default=Path(__file__).with_name("model.npz"))
+    parser.add_argument("--model", type=Path, default=Path(__file__).resolve().parent.parent / "model.npz")
     parser.add_argument("--port", type=positive, default=8000)
     parser.add_argument("--depth", type=positive, default=3)
     parser.add_argument("--max-nodes", type=positive, default=20000)

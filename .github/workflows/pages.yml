@@ -30,7 +30,7 @@ jobs:
           OPENBLAS_NUM_THREADS: '1'
         run: python -m unittest -v
       - name: Build static site with existing checkpoint
-        run: python build_pages.py
+        run: python web/build_pages.py
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
