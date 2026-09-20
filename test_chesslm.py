@@ -1,4 +1,4 @@
-"""Forward-only checks. No Stockfish process, data generation, or training."""
+"""No Stockfish process, data generation, optimizer steps, or training."""
 from pathlib import Path
 import tempfile
 import unittest
@@ -55,6 +55,28 @@ class ChessTests(unittest.TestCase):
             self.model.save(invalid)
             with self.assertRaises(ValueError):
                 Model.load(invalid)
+
+    def test_gradient_math_without_optimization(self):
+        model = Model.fresh(7)
+        board = chess.Board()
+        x = [features(board)]
+        for move in ("e2e4", "d7d5", "e4d5"):
+            board.push_uci(move)
+            x.append(features(board))
+        x = np.stack(x)
+        target = np.array([0.1, -0.2, 0.3, 0.4], np.float32)
+        gradients = model.gradients(x, target)
+        # Numerical perturbations check derivatives; no learning update occurs.
+        for param, gradient in zip(model.params, gradients):
+            index = np.unravel_index(np.abs(gradient).argmax(), gradient.shape)
+            original = param[index].copy()
+            epsilon = 0.001
+            param[index] = original + epsilon
+            plus = np.mean((model.predict(x).astype(np.float64) - target) ** 2)
+            param[index] = original - epsilon
+            minus = np.mean((model.predict(x).astype(np.float64) - target) ** 2)
+            param[index] = original
+            self.assertAlmostEqual(float(gradient[index]), (plus - minus) / (2 * epsilon), delta=0.00003)
 
     def test_legal_move_and_budget_without_engine(self):
         board = chess.Board()
