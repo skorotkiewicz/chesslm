@@ -115,6 +115,10 @@ plies. One search runs at a time; another tab can retry if the model is busy.
 This is a localhost-only server for personal play, not a public hosting setup.
 Stop it with Ctrl+C. Keep `chess_web.html` beside `chess_web.py`.
 
+A [Neko](https://en.wikipedia.org/wiki/Neko_(software))-style cat chases your
+cursor and then scratches, grooms, yawns, and sleeps. It is drawn on a canvas
+and ignores clicks; turn it off with your browser's reduced-motion setting.
+
 <details>
 <summary id="github-pages">GitHub Pages</summary>
 

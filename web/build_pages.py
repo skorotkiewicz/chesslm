@@ -19,7 +19,7 @@ def build(output, model):
     if html.count(marker) != 1:
         raise ValueError("Missing or duplicate browser runtime marker")
     (output / "index.html").write_text(html.replace(marker, marker.replace("server", "browser")))
-    for name in ("chess_worker.js", "chess_position.py"):
+    for name in ("chess_worker.js", "chess_position.py", "neko.js"):
         shutil.copyfile(ROOT / name, output / name)
     shutil.copyfile(ROOT.parent / "chesslm.py", output / "chesslm.py")
     shutil.copyfile(model, output / "model.npz")
