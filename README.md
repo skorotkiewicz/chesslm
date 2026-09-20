@@ -86,6 +86,31 @@ These examples use a Linux system Python with Tkinter installed. Choose a
 Python with Tkinter on your platform. `uv` installs the script's declared NumPy
 and python-chess dependencies in an isolated environment.
 
+## Web game
+
+```sh
+python chess_web.py
+# Or use an isolated uv environment:
+uv run --python /usr/bin/python chess_web.py
+```
+
+Open **http://127.0.0.1:8000** in your browser. Choose White or Black, then click
+a piece and its destination. Legal moves are highlighted; promotions offer all
+four pieces. Arrow keys and Enter work on the board. Each tab has its own game;
+refreshing the page starts over.
+
+The Python server loads `model.npz` beside the script and performs inference on
+CPU. The browser does not download the model. No Stockfish, training, external
+assets, or JavaScript packages are needed. Tkinter is not required.
+
+Use `--model /path/to/model.npz`, `--port 8080`, `--depth 3`, or
+`--max-nodes 20000` to change the defaults. The server preserves move history for
+repetition draws and validates every move. Games are limited to 1000 submitted
+plies. One search runs at a time; another tab can retry if the model is busy.
+
+This is a localhost-only server for personal play, not a public hosting setup.
+Stop it with Ctrl+C. Keep `chess_web.html` beside `chess_web.py`.
+
 ## Command-line play
 
 ```sh
@@ -190,6 +215,7 @@ From an environment containing `requirements.txt`, run:
 OPENBLAS_NUM_THREADS=1 python -m unittest -v
 python chesslm.py --help
 python chess_game.py --help
+python chess_web.py --help
 ```
 
 Tests cover encoding, checkpoint size and loading, gradient math, invalid
@@ -209,6 +235,9 @@ training machine.
 | --- | --- |
 | [`chesslm.py`](chesslm.py) | Model, search, data generation, training, and benchmark CLI |
 | [`chess_game.py`](chess_game.py) | Tkinter desktop game |
+| [`chess_web.py`](chess_web.py) | Local HTTP server and validated game API |
+| [`chess_web.html`](chess_web.html) | Browser chess board |
+| [`test_chess_web.py`](test_chess_web.py) | HTTP, rule, and request-validation checks |
 | [`model.npz`](model.npz) | Included checkpoint for play |
 | [`requirements.txt`](requirements.txt) | Runtime dependencies |
 | [`test_chesslm.py`](test_chesslm.py) | Model and search checks |
