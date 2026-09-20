@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chesslm | Play</title>
+<style>
+  :root { color-scheme: light; font-family: system-ui, sans-serif; color: #202b24; background: #f5f3ec; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  header { max-width: 980px; margin: auto; padding: 28px 24px; display: flex; align-items: baseline; gap: 16px; border-bottom: 1px solid #d6d9cf; }
+  h1 { margin: 0; font: bold 30px Georgia, serif; letter-spacing: -1px; }
+  header span, .muted { color: #59645b; font-size: 14px; }
+  main { max-width: 980px; margin: 32px auto; padding: 0 24px; display: grid; grid-template-columns: minmax(0, 560px) 1fr; gap: 32px; align-items: start; }
+  .board-frame { background: #293a2e; padding: 12px; border-radius: 5px; box-shadow: 0 8px 24px #20322518; }
+  #board { display: grid; grid-template-columns: repeat(8, 1fr); width: 100%; aspect-ratio: 1; }
+  .square { position: relative; display: grid; place-items: center; min-width: 0; border: 0; border-radius: 0; padding: 0; background: #eee7d5; cursor: pointer; aspect-ratio: 1; }
+  .square.dark { background: #759078; }
+  .square.last { background: #c8bd78; }
+  .square.selected { background: #e6b85a; }
+  .square.check { background: #cf7567; }
+  .square:focus-visible { outline: 3px solid #101c13; outline-offset: -4px; z-index: 1; }
+  .piece { font-family: 'DejaVu Sans', 'Segoe UI Symbol', serif; font-size: clamp(28px, 6vw, 49px); line-height: 1; color: #18251c; text-shadow: -1px 0 #fffaf0, 1px 0 #fffaf0, 0 -1px #fffaf0, 0 1px #fffaf0; }
+  .piece.white { color: #fffaf0; text-shadow: -1px 0 #18251c, 1px 0 #18251c, 0 -1px #18251c, 0 1px #18251c; }
+  .square.target::after { content: ''; position: absolute; width: 22%; aspect-ratio: 1; border-radius: 50%; background: #20322580; }
+  .square.target.capture::after { width: 84%; background: transparent; border: 3px solid #203225aa; }
+  .coordinate { position: absolute; font: 10px system-ui, sans-serif; color: #18251c; }
+  .file { bottom: 1px; right: 3px; } .rank { top: 1px; left: 3px; }
+  aside { padding-top: 4px; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 2px; font-size: 11px; font-weight: 700; color: #59645b; }
+  h2 { font: 28px Georgia, serif; margin: 10px 0; }
+  #status { min-height: 64px; margin-bottom: 24px; }
+  #status p { line-height: 1.5; margin: 0; }
+  label { display: block; font-size: 14px; margin-bottom: 7px; }
+  select, .control { font: inherit; min-height: 44px; border-radius: 5px; border: 1px solid #9aa69a; padding: 10px 14px; }
+  select { width: 100%; background: #fffdf7; margin-bottom: 12px; color: inherit; }
+  .control { cursor: pointer; background: #293f30; color: #fffdf7; }
+  .control.secondary { color: #293f30; background: #fffdf7; }
+  .wide { width: 100%; }
+  button:disabled, select:disabled { opacity: .55; cursor: wait; }
+  :focus-visible { outline: 3px solid #b36a26; outline-offset: 3px; }
+  #error { color: #9a3024; line-height: 1.5; }
+  .help { margin-top: 26px; border-top: 1px solid #d6d9cf; padding-top: 18px; line-height: 1.65; font-size: 14px; }
+  code { font-size: 13px; }
+  dialog { border: 1px solid #9aa69a; border-radius: 8px; background: #f5f3ec; color: inherit; max-width: calc(100% - 32px); }
+  dialog::backdrop { background: #17261cbc; }
+  dialog form { display: flex; gap: 8px; flex-wrap: wrap; }
+  [hidden] { display: none !important; }
+  @media (max-width: 740px) {
+    header { padding: 20px 16px; }
+    main { display: flex; flex-direction: column; margin: 20px auto; padding: 0 16px; gap: 22px; max-width: 590px; }
+    .board-frame, aside { width: 100%; }
+    .board-frame { padding: 8px; }
+    .piece { font-size: clamp(26px, 9vw, 49px); }
+    #status { min-height: 0; margin-bottom: 18px; }
+  }
+</style>
+</head>
+<body>
+<header><h1>chesslm</h1><span>Small model. Your move.</span></header>
+<main>
+  <section class="board-frame" aria-label="Chess board">
+    <div id="board" role="group" aria-label="Chess squares. Use arrow keys, then Enter to select."></div>
+  </section>
+  <aside>
+    <div class="eyebrow">You vs. the model</div>
+    <div id="status" role="status" aria-live="polite"><h2 id="heading">Loading...</h2><p id="detail"></p></div>
+    <label for="side">Play as</label>
+    <select id="side"><option value="white">White</option><option value="black">Black</option></select>
+    <button class="control wide" id="new-game">New game</button>
+    <p id="error" role="alert" hidden></p>
+    <button class="control secondary wide" id="retry" hidden>Retry model move</button>
+    <div class="help muted">
+      Click a piece, then a highlighted square. Arrow keys and Enter work too.
+      <p>Local checkpoint <code>model.npz</code><br>No Stockfish during play.</p>
+      <p id="search-info"></p>
+    </div>
+  </aside>
+</main>
+<dialog id="promotion" aria-labelledby="promotion-title">
+  <h2 id="promotion-title">Promote your pawn</h2>
+  <form method="dialog">
+    <button class="control" value="q">Queen</button><button class="control" value="r">Rook</button>
+    <button class="control" value="b">Bishop</button><button class="control" value="n">Knight</button>
+    <button class="control secondary" value="cancel">Cancel</button>
+  </form>
+</dialog>
+<noscript>This game needs JavaScript enabled.</noscript>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const glyphs = {p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚'};
+const names = {p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king'};
+let state = null, human = 'white', selected = null, busy = false, error = '', pending = [];
+let focusSquare = 'e2', lastNodes = null;
+
+function squares() {
+  const order = [];
+  for (let row = 0; row < 8; row++) for (let col = 0; col < 8; col++) {
+    order.push('abcdefgh'[human === 'white' ? col : 7 - col] + (human === 'white' ? 8 - row : row + 1));
+  }
+  return order;
+}
+
+function render() {
+  const hadFocus = $('board').contains(document.activeElement);
+  $('board').replaceChildren();
+  const last = state?.moves.at(-1), active = !busy && state && !state.over && state.turn === human;
+  const targets = new Set((state?.legal || []).filter(m => m.slice(0, 2) === selected).map(m => m.slice(2, 4)));
+  squares().forEach((square, index) => {
+    const piece = state?.pieces[square], lower = piece?.toLowerCase();
+    const white = piece && piece === piece.toUpperCase();
+    const cell = document.createElement('button');
+    cell.type = 'button'; cell.className = 'square'; cell.dataset.square = square;
+    cell.classList.toggle('dark', (square.charCodeAt(0) - 97 + Number(square[1])) % 2 === 1);
+    cell.classList.toggle('last', !!last && [last.slice(0, 2), last.slice(2, 4)].includes(square));
+    cell.classList.toggle('selected', square === selected);
+    cell.classList.toggle('check', square === state?.check);
+    cell.classList.toggle('target', targets.has(square));
+    cell.classList.toggle('capture', !!piece);
+    cell.tabIndex = square === focusSquare ? 0 : -1;
+    cell.setAttribute('aria-label', `${square}, ${piece ? (white ? 'White ' : 'Black ') + names[lower] : 'empty'}`);
+    cell.setAttribute('aria-pressed', String(square === selected));
+    cell.setAttribute('aria-disabled', String(!active));
+    if (piece) {
+      const span = document.createElement('span');
+      span.className = 'piece' + (white ? ' white' : ''); span.textContent = glyphs[lower]; span.setAttribute('aria-hidden', 'true');
+      cell.append(span);
+    }
+    for (const [show, text, kind] of [[index >= 56, square[0], 'file'], [index % 8 === 0, square[1], 'rank']]) {
+      if (!show) continue;
+      const label = document.createElement('span'); label.className = 'coordinate ' + kind; label.textContent = text; label.setAttribute('aria-hidden', 'true'); cell.append(label);
+    }
+    cell.onclick = () => select(square);
+    cell.onkeydown = event => {
+      const delta = {ArrowLeft: -1, ArrowRight: 1, ArrowUp: -8, ArrowDown: 8}[event.key];
+      if (delta === undefined) return;
+      event.preventDefault();
+      if ((delta === -1 && index % 8 === 0) || (delta === 1 && index % 8 === 7)) return;
+      const next = squares()[index + delta];
+      if (next) { focusSquare = next; render(); }
+    };
+    $('board').append(cell);
+  });
+  if (hadFocus) document.querySelector(`[data-square="${focusSquare}"]`)?.focus({preventScroll: true});
+  $('board').setAttribute('aria-busy', String(busy));
+  $('side').disabled = $('new-game').disabled = busy;
+  $('error').hidden = !error; $('error').textContent = error;
+  $('retry').hidden = !error || !state || state.over || state.turn === human;
+  $('retry').disabled = busy;
+  let heading = 'Your move', detail = `You are playing ${human}.`;
+  if (state?.over) {
+    heading = state.result === '1/2-1/2' ? 'Draw' : ((state.result === '1-0') === (human === 'white') ? 'You win' : 'Model wins');
+    detail = state.reason + '. Start a new game to play again.';
+  } else if (busy) { heading = state?.turn !== human ? 'Model is thinking...' : 'Loading...'; detail = 'Searching with your local checkpoint.'; }
+  else if (error) { heading = 'Move interrupted'; detail = state?.turn === human ? 'Try your move again.' : 'Retry when the server is ready.'; }
+  else if (state?.check) detail = 'You are in check.';
+  $('heading').textContent = heading; $('detail').textContent = detail;
+  $('search-info').textContent = lastNodes === null ? '' : `Last model search: ${lastNodes.toLocaleString()} nodes.`;
+}
+
+function select(square) {
+  if (busy || !state || state.over || state.turn !== human || $('promotion').open) return;
+  focusSquare = square;
+  const moves = state.legal.filter(m => m.slice(0, 2) === selected && m.slice(2, 4) === square);
+  if (moves.length) {
+    if (moves[0].length === 5) { pending = moves; $('promotion').returnValue = ''; $('promotion').showModal(); }
+    else update([...state.moves, moves[0]]);
+    return;
+  }
+  const piece = state.pieces[square];
+  selected = piece && (piece === piece.toUpperCase()) === (human === 'white') && square !== selected ? square : null;
+  render();
+}
+
+async function request(moves, think) {
+  const response = await fetch('/api/position', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({moves, think})});
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Request failed');
+  return result;
+}
+
+async function update(moves) {
+  if (busy) return;
+  busy = true; error = ''; selected = null; render();
+  try {
+    state = await request(moves, false); render();
+    if (!state.over && state.turn !== human) {
+      state = await request(state.moves, true); lastNodes = state.nodes;
+    }
+  } catch (failure) { error = failure.message; }
+  finally { busy = false; render(); }
+}
+
+function newGame() {
+  if (busy) return;
+  human = $('side').value; focusSquare = human === 'white' ? 'e2' : 'e7'; lastNodes = null;
+  state = null; update([]);
+}
+$('promotion').addEventListener('close', () => {
+  const move = pending.find(m => m[4] === $('promotion').returnValue);
+  pending = [];
+  if (move) update([...state.moves, move]);
+});
+$('new-game').onclick = newGame;
+$('side').onchange = newGame;
+$('retry').onclick = () => update(state.moves);
+newGame();
+</script>
+</body>
+</html>
