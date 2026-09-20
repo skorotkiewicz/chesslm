@@ -4,9 +4,10 @@ A 100,353-parameter evaluator with alpha-beta search. Its float32 weights occupy
 401,412 bytes, plus a small NPZ header. It uses NumPy and python-chess, not a
 language model or GPU framework.
 
-**No training or Stockfish data generation has been run on this machine.**
-There is no trained checkpoint yet. Tests use hand-set zero weights. Passing
-those tests says nothing about learned playing strength or Elo.
+The game uses a supplied `model.npz`; its training history and strength are not
+verified here. The game and local checks do not run training or Stockfish data
+generation. Search tests use hand-set zero weights; a derivative check uses
+random weights without optimization. Passing these tests does not establish Elo.
 
 ## Setup on the training machine
 
@@ -68,6 +69,40 @@ if no iteration completes. Long tactics remain a limitation. Automatic draws
 are recognized; claiming optional draws is not implemented. A FEN cannot carry
 prior repetition history.
 
+## Desktop chess game
+
+Run the Tkinter game with your existing `model.npz`. It does not run Stockfish,
+generate positions, or train. The model file defaults to the script's directory.
+
+```sh
+uv run --python /usr/bin/python chess_game.py
+# Play as Black, with the board flipped:
+uv run --python /usr/bin/python chess_game.py --color black
+```
+
+`uv` installs the script's declared NumPy and python-chess dependencies into an
+isolated script environment, independently of `.venv`. With a working environment
+containing `requirements.txt`, you can instead run `python chess_game.py`.
+Tkinter and a desktop display are required;
+some Linux distributions package Tkinter separately as `python3-tk` or `tk`.
+
+Click your piece, then its destination. Dots and rings mark legal moves. Choose
+a piece when promoting. The board also accepts arrow keys and Enter when focused;
+Tab reaches the buttons. New game becomes available after the model finishes
+thinking. Automatic draws end the game; optional draw claims are not implemented.
+
+Use `--model /path/to/model.npz`, `--depth 3`, or `--max-nodes 20000` to change
+the checkpoint or search budget. Search runs in a background thread, so the
+window can redraw and close while the model thinks.
+
+Run all checks, including the GUI checks, without training:
+
+```sh
+uv run --isolated --no-project --python /usr/bin/python --with numpy --with python-chess python -m unittest -v
+```
+
+GUI tests skip when no desktop display is available.
+
 ## Measure strength on the training machine
 
 Generate a separate corpus with a different seed. Do not train on this file.
@@ -89,8 +124,9 @@ OPENBLAS_NUM_THREADS=1 .venv/bin/python -m unittest -v
 .venv/bin/python chesslm.py --help
 ```
 
-Checks cover encoding, checkpoint size and loading, invalid positions, held-out
-game separation, node limits, promotions, check evasion, forced mates, and a free
-queen capture. They do not invoke data generation, the optimizer, or Stockfish.
+Checks cover encoding, checkpoint size and loading, gradient math, invalid
+positions, held-out game separation, node limits, promotions, check evasion,
+forced mates, and a free queen capture. They do not invoke data generation,
+the optimizer, or Stockfish.
 The generation and training commands still require end-to-end verification on
 the training machine.
