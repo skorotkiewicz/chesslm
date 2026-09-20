@@ -3,3 +3,4 @@ __pycache__/
 # *.npz
 *.jsonl
 stockfish/
+_site/

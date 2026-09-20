@@ -111,6 +111,34 @@ plies. One search runs at a time; another tab can retry if the model is busy.
 This is a localhost-only server for personal play, not a public hosting setup.
 Stop it with Ctrl+C. Keep `chess_web.html` beside `chess_web.py`.
 
+### GitHub Pages
+
+The included [Pages workflow](.github/workflows/pages.yml) builds and deploys the
+browser game when you push to `main`. In the repository, open **Settings > Pages**
+and select **GitHub Actions** as the source. Push these files, or run
+**Deploy chess game to GitHub Pages** from the Actions tab. For this repository,
+the expected address is `https://skorotkiewicz.github.io/chesslm/`.
+
+Pages cannot run a Python server. This build instead loads Pyodide and NumPy in
+a Web Worker, then runs the same evaluator and search with the bundled
+`model.npz`. The checkpoint is copied unchanged; CI does not train or generate
+data. Relative asset paths support project Pages URLs such as `/chesslm/`.
+
+The first visit downloads the Python runtime and NumPy from jsDelivr and can
+take a minute on a slow connection. Browser inference uses depth 2 and a
+2,000-node limit per move, below the local server's default budget. The UI stays
+responsive while the worker searches. Refreshing discards the game.
+
+To preview the Pages build locally, use an environment with `requirements.txt`:
+
+```sh
+python build_pages.py
+python -m http.server 8001 --bind 127.0.0.1 --directory _site
+```
+
+Open `http://127.0.0.1:8001`. Opening `index.html` as a `file://` URL will not work.
+The build bundles python-chess with its GPL license in `chess.zip`.
+
 ## Command-line play
 
 ```sh
@@ -237,7 +265,10 @@ training machine.
 | [`chess_game.py`](chess_game.py) | Tkinter desktop game |
 | [`chess_web.py`](chess_web.py) | Local HTTP server and validated game API |
 | [`chess_web.html`](chess_web.html) | Browser chess board |
-| [`test_chess_web.py`](test_chess_web.py) | HTTP, rule, and request-validation checks |
+| [`test_chess_web.py`](test_chess_web.py) | HTTP, rule, request-validation, and static-build checks |
+| [`chess_position.py`](chess_position.py) | Shared move validation and board responses |
+| [`chess_worker.js`](chess_worker.js) | Browser-side model inference with Pyodide |
+| [`build_pages.py`](build_pages.py) | Static site build, including the unchanged model |
 | [`model.npz`](model.npz) | Included checkpoint for play |
 | [`requirements.txt`](requirements.txt) | Runtime dependencies |
 | [`test_chesslm.py`](test_chesslm.py) | Model and search checks |

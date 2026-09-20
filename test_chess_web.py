@@ -1,13 +1,18 @@
 """HTTP and rule checks. No data generation or training."""
 from http.client import HTTPConnection
 import json
+from pathlib import Path
+import tempfile
 from threading import Thread
+from zipfile import ZipFile
 import unittest
 from unittest.mock import patch
 
 import chess
 
-from chess_web import ChessServer, position, replay
+from build_pages import ROOT, build
+from chess_position import position, replay
+from chess_web import ChessServer
 
 
 class WebTests(unittest.TestCase):
@@ -33,6 +38,20 @@ class WebTests(unittest.TestCase):
             return response.status, response.read(), response.getheaders()
         finally:
             connection.close()
+
+    def test_static_build_keeps_checkpoint_and_bundles_rules(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            build(output, ROOT / "model.npz")
+            self.assertEqual((output / "model.npz").read_bytes(), (ROOT / "model.npz").read_bytes())
+            self.assertIn('name="chess-runtime" content="browser"', (output / "index.html").read_text())
+            self.assertTrue((output / "chess_worker.js").is_file())
+            self.assertTrue((output / "chess_position.py").is_file())
+            with ZipFile(output / "chess.zip") as archive:
+                self.assertIn("chess/__init__.py", archive.namelist())
+                self.assertIn("chess/engine.py", archive.namelist())
+                self.assertIn("chess/LICENSE.txt", archive.namelist())
+            self.assertFalse((output / "positions.jsonl").exists())
 
     def test_page_and_private_files(self):
         status, body, headers = self.request("GET", "/")

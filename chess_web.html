@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="chess-runtime" content="server">
 <title>chesslm | Play</title>
 <style>
   :root { color-scheme: light; font-family: system-ui, sans-serif; color: #202b24; background: #f5f3ec; }
@@ -72,7 +73,7 @@
     <button class="control secondary wide" id="retry" hidden>Retry model move</button>
     <div class="help muted">
       Click a piece, then a highlighted square. Arrow keys and Enter work too.
-      <p>Local checkpoint <code>model.npz</code><br>No Stockfish during play.</p>
+      <p id="runtime-info">Local checkpoint inference.<br>No Stockfish during play.</p>
       <p id="search-info"></p>
     </div>
   </aside>
@@ -93,6 +94,30 @@ const glyphs = {p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚'};
 const names = {p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king'};
 let state = null, human = 'white', selected = null, busy = false, error = '', pending = [];
 let focusSquare = 'e2', lastNodes = null;
+const browserMode = document.querySelector('meta[name="chess-runtime"]').content === 'browser';
+const waiting = new Map();
+let worker, requestId = 0, workerReady;
+if (browserMode) {
+  $('runtime-info').textContent = 'model.npz runs in your browser. No server or Stockfish. First load downloads the Python runtime.';
+  workerReady = new Promise((resolve, reject) => {
+    worker = new Worker('chess_worker.js', {type: 'module'});
+    const fail = message => {
+      error = message; reject(new Error(message));
+      for (const request of waiting.values()) request.reject(new Error(message));
+      waiting.clear();
+    };
+    worker.onerror = () => fail('Browser engine failed. Check your connection and reload the page.');
+    worker.onmessage = ({data}) => {
+      if (data.ready) return resolve();
+      if (data.fatal) return fail(data.fatal);
+      const request = waiting.get(data.id);
+      if (!request) return;
+      waiting.delete(data.id);
+      if (data.error) request.reject(new Error(data.error));
+      else request.resolve(data.result);
+    };
+  });
+}
 
 function squares() {
   const order = [];
@@ -152,7 +177,10 @@ function render() {
   if (state?.over) {
     heading = state.result === '1/2-1/2' ? 'Draw' : ((state.result === '1-0') === (human === 'white') ? 'You win' : 'Model wins');
     detail = state.reason + '. Start a new game to play again.';
-  } else if (busy) { heading = state?.turn !== human ? 'Model is thinking...' : 'Loading...'; detail = 'Searching with your local checkpoint.'; }
+  } else if (busy) {
+    heading = !state ? 'Loading model...' : state.turn !== human ? 'Model is thinking...' : 'Loading...';
+    detail = browserMode && !state ? 'First load can take a minute. Keep this tab open.' : 'Searching with your local checkpoint.';
+  }
   else if (error) { heading = 'Move interrupted'; detail = state?.turn === human ? 'Try your move again.' : 'Retry when the server is ready.'; }
   else if (state?.check) detail = 'You are in check.';
   $('heading').textContent = heading; $('detail').textContent = detail;
@@ -174,6 +202,14 @@ function select(square) {
 }
 
 async function request(moves, think) {
+  if (browserMode) {
+    await workerReady;
+    return new Promise((resolve, reject) => {
+      const id = ++requestId;
+      waiting.set(id, {resolve, reject});
+      worker.postMessage({id, moves, think});
+    });
+  }
   const response = await fetch('/api/position', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({moves, think})});
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Request failed');
