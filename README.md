@@ -59,7 +59,8 @@ The `OPENBLAS_NUM_THREADS=1` prefix limits OpenBLAS threading for the small
 network. In PowerShell, set `$env:OPENBLAS_NUM_THREADS = "1"` before running the
 Python command. The desktop game sets this default automatically.
 
-## Desktop game
+<details>
+<summary id="desktop-game">Desktop game</summary>
 
 ```sh
 python chess_game.py
@@ -86,7 +87,10 @@ These examples use a Linux system Python with Tkinter installed. Choose a
 Python with Tkinter on your platform. `uv` installs the script's declared NumPy
 and python-chess dependencies in an isolated environment.
 
-## Web game
+</details>
+
+<details>
+<summary id="web-game">Web game</summary>
 
 ```sh
 python chess_web.py
@@ -111,7 +115,8 @@ plies. One search runs at a time; another tab can retry if the model is busy.
 This is a localhost-only server for personal play, not a public hosting setup.
 Stop it with Ctrl+C. Keep `chess_web.html` beside `chess_web.py`.
 
-### GitHub Pages
+<details>
+<summary id="github-pages">GitHub Pages</summary>
 
 The included [Pages workflow](.github/workflows/pages.yml) builds and deploys the
 browser game when you push to `main`. In the repository, open **Settings > Pages**
@@ -138,6 +143,9 @@ python -m http.server 8001 --bind 127.0.0.1 --directory _site
 
 Open `http://127.0.0.1:8001`. Opening `index.html` as a `file://` URL will not work.
 The build bundles python-chess with its GPL license in `chess.zip`.
+
+</details>
+</details>
 
 ## Command-line play
 
