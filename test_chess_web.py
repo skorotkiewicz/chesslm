@@ -43,7 +43,7 @@ class WebTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
             build(output, Path("model.npz"))
-            self.assertEqual((output / "model.npz").read_bytes(), (ROOT / "model.npz").read_bytes())
+            self.assertEqual((output / "model.npz").read_bytes(), Path("model.npz").read_bytes())
             self.assertIn('name="chess-runtime" content="browser"', (output / "index.html").read_text())
             self.assertTrue((output / "chess_worker.js").is_file())
             self.assertTrue((output / "chess_position.py").is_file())
@@ -62,7 +62,7 @@ class WebTests(unittest.TestCase):
             self.assertEqual(self.request("GET", path)[0], 404)
 
     def test_legal_state_and_ai_reply(self):
-        with patch("chess_web.choose_move", return_value=(chess.Move.from_uci("e7e5"), 31)) as search:
+        with patch("web.chess_web.choose_move", return_value=(chess.Move.from_uci("e7e5"), 31)) as search:
             status, body, _ = self.request(data={"moves": ["e2e4"], "think": True})
         self.assertEqual(status, 200)
         result = json.loads(body)
@@ -91,7 +91,7 @@ class WebTests(unittest.TestCase):
         with self.server.search_slot:
             self.assertEqual(self.request(data={"moves": [], "think": True})[0], 503)
         moves = "f2f3 e7e5 g2g4 d8h4".split()
-        with patch("chess_web.choose_move", side_effect=AssertionError("Finished game searched")):
+        with patch("web.chess_web.choose_move", side_effect=AssertionError("Finished game searched")):
             status, body, _ = self.request(data={"moves": moves, "think": True})
         self.assertEqual(status, 200)
         result = json.loads(body)
