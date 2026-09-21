@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">chesslm circuit knight</title>
+  <rect width="64" height="64" rx="14" fill="#293a2e"/>
+  <g transform="translate(-12 -11) scale(.44)">
+    <path d="M66 143C65 127 73 117 90 104L74 105L58 91L87 63L90 44L109 57C134 61 149 84 145 111L140 143H66Z" fill="#eee7d5"/>
+    <path d="M65 152H144" stroke="#eee7d5" stroke-width="10" stroke-linecap="round"/>
+    <path d="M110 85V105L124 119V135" fill="none" stroke="#293a2e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <g fill="#293a2e">
+      <circle cx="89" cy="79" r="5"/>
+      <circle cx="110" cy="83" r="7"/>
+      <circle cx="124" cy="121" r="7"/>
+    </g>
+  </g>
+</svg>

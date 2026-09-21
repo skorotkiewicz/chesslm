@@ -26,7 +26,8 @@ from chess_position import position, replay
 
 PAGE = Path(__file__).with_name("chess_web.html")
 # Same-origin assets the page loads besides itself, with their real types.
-ASSETS = {"/neko.js": ("neko.js", "application/javascript")}
+ASSETS = {"/neko.js": ("neko.js", "application/javascript"),
+          "/favicon.svg": ("favicon.svg", "image/svg+xml")}
 
 
 class ChessServer(ThreadingHTTPServer):

@@ -49,6 +49,8 @@ class WebTests(unittest.TestCase):
             self.assertIn('name="chess-runtime" content="browser"', (output / "index.html").read_text())
             self.assertTrue((output / "chess_worker.js").is_file())
             self.assertTrue((output / "neko.js").is_file())
+            self.assertIn('href="favicon.svg"', (output / "index.html").read_text())
+            self.assertEqual((output / "favicon.svg").read_bytes(), Path("web/favicon.svg").read_bytes())
             self.assertTrue((output / "chess_position.py").is_file())
             with ZipFile(output / "chess.zip") as archive:
                 self.assertIn("chess/__init__.py", archive.namelist())
@@ -61,11 +63,16 @@ class WebTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn(b'<div id="board"', body)
         self.assertIn(b'neko.js', body)
+        self.assertIn(b'href="favicon.svg"', body)
         self.assertIn("Content-Security-Policy", dict(headers))
         status, body, headers = self.request("GET", "/neko.js")
         self.assertEqual(status, 200)
         self.assertTrue(dict(headers)["Content-Type"].startswith("application/javascript"))
         self.assertIn(b"chasing your cursor", body)
+        status, body, headers = self.request("GET", "/favicon.svg")
+        self.assertEqual(status, 200)
+        self.assertTrue(dict(headers)["Content-Type"].startswith("image/svg+xml"))
+        self.assertEqual(body, Path("web/favicon.svg").read_bytes())
         for path in ("/model.npz", "/../chesslm.py", "/positions.jsonl", "/chess_web.py", "/chess.zip", "/nope.js"):
             self.assertEqual(self.request("GET", path)[0], 404)
 
