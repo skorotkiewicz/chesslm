@@ -71,6 +71,7 @@
     <button class="control wide" id="new-game">New game</button>
     <p id="error" role="alert" hidden></p>
     <button class="control secondary wide" id="retry" hidden>Retry model move</button>
+    <button class="control secondary wide" id="watch">Watch Stockfish vs model</button>
     <div class="help muted">
       Click a piece, then a highlighted square. Arrow keys and Enter work too.
       <p id="runtime-info">Local checkpoint inference.<br>No Stockfish during play.</p>
@@ -94,10 +95,12 @@ const glyphs = {p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚'};
 const names = {p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king'};
 let state = null, human = 'white', selected = null, busy = false, error = '', pending = [];
 let focusSquare = 'e2', lastNodes = null;
+let watching = false;
 const browserMode = document.querySelector('meta[name="chess-runtime"]').content === 'browser';
 const waiting = new Map();
 let worker, requestId = 0, workerReady;
 if (browserMode) {
+  $('watch').hidden = true;   // Watch mode needs the local server and Stockfish.
   $('runtime-info').textContent = 'model.npz runs in your browser. No server or Stockfish. First load downloads the Python runtime.';
   workerReady = new Promise((resolve, reject) => {
     worker = new Worker('chess_worker.js', {type: 'module'});
@@ -130,7 +133,7 @@ function squares() {
 function render() {
   const hadFocus = $('board').contains(document.activeElement);
   $('board').replaceChildren();
-  const last = state?.moves.at(-1), active = !busy && state && !state.over && state.turn === human;
+  const last = state?.moves.at(-1), active = !busy && !watching && state && !state.over && state.turn === human;
   const targets = new Set((state?.legal || []).filter(m => m.slice(0, 2) === selected).map(m => m.slice(2, 4)));
   squares().forEach((square, index) => {
     const piece = state?.pieces[square], lower = piece?.toLowerCase();
@@ -170,14 +173,18 @@ function render() {
   if (hadFocus) document.querySelector(`[data-square="${focusSquare}"]`)?.focus({preventScroll: true});
   $('board').setAttribute('aria-busy', String(busy));
   $('side').disabled = $('new-game').disabled = busy;
+  $('watch').hidden = browserMode;
+  $('watch').textContent = watching ? 'Stop watching' : 'Watch Stockfish vs model';
   $('error').hidden = !error; $('error').textContent = error;
-  $('retry').hidden = !error || !state || state.over || state.turn === human;
+  $('retry').hidden = !error || watching || !state || state.over || state.turn === human;
   $('retry').disabled = busy;
   let heading = 'Your move', detail = `You are playing ${human}.`;
   if (state?.over) {
     heading = state.result === '1/2-1/2' ? 'Draw' : ((state.result === '1-0') === (human === 'white') ? 'You win' : 'Model wins');
     detail = state.reason + '. Start a new game to play again.';
-  } else if (busy) {
+  } else if (error) { heading = 'Move interrupted'; detail = watching || state?.turn !== human ? 'Retry when the server is ready.' : 'Try your move again.'; }
+  else if (watching) { heading = 'Stockfish vs model'; detail = 'The model plays White, Stockfish plays Black.'; }
+  else if (busy) {
     heading = !state ? 'Loading model...' : state.turn !== human ? 'Model is thinking...' : 'Loading...';
     detail = browserMode && !state ? 'First load can take a minute. Keep this tab open.' : 'Searching with your local checkpoint.';
   }
@@ -188,7 +195,7 @@ function render() {
 }
 
 function select(square) {
-  if (busy || !state || state.over || state.turn !== human || $('promotion').open) return;
+  if (busy || watching || !state || state.over || state.turn !== human || $('promotion').open) return;
   focusSquare = square;
   const moves = state.legal.filter(m => m.slice(0, 2) === selected && m.slice(2, 4) === square);
   if (moves.length) {
@@ -201,7 +208,7 @@ function select(square) {
   render();
 }
 
-async function request(moves, think) {
+async function request(moves, think, watch) {
   if (browserMode) {
     await workerReady;
     return new Promise((resolve, reject) => {
@@ -210,7 +217,7 @@ async function request(moves, think) {
       worker.postMessage({id, moves, think});
     });
   }
-  const response = await fetch('/api/position', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({moves, think})});
+  const response = await fetch('/api/position', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({moves, think, watch: !!watch})});
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Request failed');
   return result;
@@ -220,9 +227,19 @@ async function update(moves) {
   if (busy) return;
   busy = true; error = ''; selected = null; render();
   try {
-    state = await request(moves, false); render();
-    if (!state.over && state.turn !== human) {
-      state = await request(state.moves, true); lastNodes = state.nodes;
+    if (watching) {
+      while (true) {
+        state = await request(moves, false, true);
+        lastNodes = state.nodes;
+        render();
+        if (state.over || !watching) break;
+        moves = state.moves;
+      }
+    } else {
+      state = await request(moves, false); render();
+      if (!state.over && state.turn !== human) {
+        state = await request(state.moves, true); lastNodes = state.nodes;
+      }
     }
   } catch (failure) { error = failure.message; }
   finally { busy = false; render(); }
@@ -230,6 +247,7 @@ async function update(moves) {
 
 function newGame() {
   if (busy) return;
+  watching = false;
   human = $('side').value; focusSquare = human === 'white' ? 'e2' : 'e7'; lastNodes = null;
   state = null; update([]);
 }
@@ -241,6 +259,12 @@ $('promotion').addEventListener('close', () => {
 $('new-game').onclick = newGame;
 $('side').onchange = newGame;
 $('retry').onclick = () => update(state.moves);
+$('watch').onclick = () => {
+  if (browserMode) return;
+  if (watching) { watching = false; render(); return; }
+  watching = true;
+  update(state && !state.over ? state.moves : []);
+};
 newGame();
 </script>
 <script src="neko.js" defer></script>

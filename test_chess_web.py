@@ -13,6 +13,7 @@ import chess
 from web.build_pages import build
 from web.chess_position import position, replay
 from web.chess_web import ChessServer
+from chesslm import ENGINE, Model
 
 
 class WebTests(unittest.TestCase):
@@ -29,8 +30,8 @@ class WebTests(unittest.TestCase):
         cls.server.server_close()
         cls.thread.join()
 
-    def request(self, method="POST", path="/api/position", data=None, headers=None):
-        connection = HTTPConnection("127.0.0.1", self.server.server_port, timeout=5)
+    def request(self, method="POST", path="/api/position", data=None, headers=None, server=None):
+        connection = HTTPConnection("127.0.0.1", (server or self.server).server_port, timeout=5)
         body = json.dumps(data) if data is not None else None
         try:
             connection.request(method, path, body, headers or {"Content-Type": "application/json"})
@@ -62,8 +63,8 @@ class WebTests(unittest.TestCase):
         self.assertIn("Content-Security-Policy", dict(headers))
         status, body, headers = self.request("GET", "/neko.js")
         self.assertEqual(status, 200)
-        self.assertTrue(headers["Content-Type"].startswith("application/javascript"))
-        self.assertIn(b"chases your cursor", body)
+        self.assertTrue(dict(headers)["Content-Type"].startswith("application/javascript"))
+        self.assertIn(b"chasing your cursor", body)
         for path in ("/model.npz", "/../chesslm.py", "/positions.jsonl", "/chess_web.py", "/chess.zip", "/nope.js"):
             self.assertEqual(self.request("GET", path)[0], 404)
 
@@ -80,6 +81,32 @@ class WebTests(unittest.TestCase):
         # No shared board: another tab can still start at the initial position.
         status, body, _ = self.request(data={"moves": []})
         self.assertEqual(json.loads(body)["moves"], [])
+
+    def test_watch_model_against_real_engine(self):
+        if not ENGINE.is_file():
+            self.skipTest("No Stockfish binary for watch mode")
+        server = ChessServer(("127.0.0.1", 0), Model.fresh(1), depth=1, max_nodes=50,
+                             engine=ENGINE, sf_nodes=100)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            status, body, _ = self.request(server=server, data={"moves": [], "watch": True})
+            self.assertEqual(status, 200)
+            result = json.loads(body)
+            # Validation still applies to watch requests.
+            self.assertEqual(self.request(server=server, data={"moves": [], "watch": "yes"})[0], 400)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
+        self.assertEqual(len(result["moves"]), 2)
+        # The model answered as White, Stockfish as Black.
+        board = chess.Board()
+        for text in result["moves"]:
+            move = chess.Move.from_uci(text)
+            self.assertIn(move, board.legal_moves)
+            board.push(move)
+        self.assertFalse(result["over"])
 
     def test_request_validation(self):
         invalid = [None, [], {}, {"moves": "e2e4"}, {"moves": ["e2e5"]},
