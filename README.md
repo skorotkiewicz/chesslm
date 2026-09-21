@@ -265,13 +265,19 @@ to match Stockfish.
 
 ## Development
 
-From an environment containing `requirements.txt`, run:
+From the project root, in an environment containing `requirements.txt`, run:
 
 ```sh
 OPENBLAS_NUM_THREADS=1 python -m unittest -v
 python chesslm.py --help
 python chess_game.py --help
 python web/chess_web.py --help
+```
+
+Run the JavaScript checks with Node.js:
+
+```sh
+node --test tests/test_chess_web.js
 ```
 
 Tests cover encoding, checkpoint size and loading, gradient math, invalid
@@ -293,14 +299,15 @@ training machine.
 | [`chess_game.py`](chess_game.py) | Tkinter desktop game |
 | [`web/chess_web.py`](web/chess_web.py) | Local HTTP server and validated game API |
 | [`web/chess_web.html`](web/chess_web.html) | Browser chess board |
-| [`test_chess_web.py`](test_chess_web.py) | HTTP, rule, request-validation, and static-build checks |
+| [`tests/test_chess_web.py`](tests/test_chess_web.py) | HTTP, rule, request-validation, and static-build checks |
+| [`tests/test_chess_web.js`](tests/test_chess_web.js) | Browser winner-label and watch-mode checks |
 | [`web/chess_position.py`](web/chess_position.py) | Shared move validation and board responses |
 | [`web/chess_worker.js`](web/chess_worker.js) | Browser-side model inference with Pyodide |
 | [`web/build_pages.py`](web/build_pages.py) | Static site build, including the unchanged model |
 | [`model.npz`](model.npz) | Included checkpoint for play |
 | [`requirements.txt`](requirements.txt) | Runtime dependencies |
-| [`test_chesslm.py`](test_chesslm.py) | Model and search checks |
-| [`test_chess_game.py`](test_chess_game.py) | Desktop game checks |
+| [`tests/test_chesslm.py`](tests/test_chesslm.py) | Model and search checks |
+| [`tests/test_chess_game.py`](tests/test_chess_game.py) | Desktop game checks |
 
 ## License
 

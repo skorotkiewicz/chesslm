@@ -1,10 +1,10 @@
-// Run with: node --test test_chess_web.js
+// Run with: node --test tests/test_chess_web.js
 const assert = require('node:assert/strict');
 const {readFileSync} = require('node:fs');
 const {test} = require('node:test');
 const vm = require('node:vm');
 
-const source = readFileSync(`${__dirname}/web/chess_web.html`, 'utf8')
+const source = readFileSync(`${__dirname}/../web/chess_web.html`, 'utf8')
   .match(/<script>\s*([\s\S]*?)<\/script>/)[1]
   .replace(/\nnewGame\(\);\s*$/, '');
 
