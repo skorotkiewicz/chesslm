@@ -29,8 +29,9 @@ a move from the command line. Playing uses your CPU and requires no Stockfish
 process. Stockfish supplies training labels and benchmark comparisons.
 
 The network has 100,353 parameters and 401,412 bytes of float32 weights, about
-392 KiB. Despite the name, it is not a language model. The included checkpoint's
-training history and playing strength have not been verified; no Elo is claimed.
+392 KiB. Despite the name, it is not a language model. A reported 40-game test
+produced a **nominal Elo estimate of about 1523** against strength-limited
+Stockfish. This is not a human rating. See the [match results and limitations](#estimate-elo).
 
 ## Quick start
 
@@ -265,6 +266,23 @@ to match Stockfish.
 
 <details>
 <summary id="estimate-elo">Provisional Elo estimate</summary>
+
+Reported 40-game result for `model.npz`:
+
+| Measurement | Result |
+| --- | --- |
+| Opponent | Stockfish with `UCI_Elo=1320` |
+| Completed games | 40, with colors reversed in each opening pair |
+| Wins / draws / losses | 28 / 5 / 7 |
+| Score | 30.5 / 40 points, or 76.25% |
+| Nominal Elo estimate | **1522.6**, approximately **1523** |
+| Conservative 95% bounds | 1291.3 to an unbounded upper endpoint |
+
+These bounds assume independent opening pairs. They exclude uncertainty in
+Stockfish's configured rating, which is not independently calibrated for this
+setup. The result is a provisional engine comparison, not a human rating.
+
+To run the estimator:
 
 ```sh
 python estimate_elo.py --model model.npz --games 40 \
