@@ -95,7 +95,7 @@ const glyphs = {p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚'};
 const names = {p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king'};
 let state = null, human = 'white', selected = null, busy = false, error = '', pending = [];
 let focusSquare = 'e2', lastNodes = null;
-let watching = false;
+let watching = false, watchGame = false;
 const browserMode = document.querySelector('meta[name="chess-runtime"]').content === 'browser';
 const waiting = new Map();
 let worker, requestId = 0, workerReady;
@@ -133,7 +133,7 @@ function squares() {
 function render() {
   const hadFocus = $('board').contains(document.activeElement);
   $('board').replaceChildren();
-  const last = state?.moves.at(-1), active = !busy && !watching && state && !state.over && state.turn === human;
+  const last = state?.moves.at(-1), active = !busy && !watchGame && state && !state.over && state.turn === human;
   const targets = new Set((state?.legal || []).filter(m => m.slice(0, 2) === selected).map(m => m.slice(2, 4)));
   squares().forEach((square, index) => {
     const piece = state?.pieces[square], lower = piece?.toLowerCase();
@@ -175,15 +175,21 @@ function render() {
   $('side').disabled = $('new-game').disabled = busy;
   $('watch').hidden = browserMode;
   $('watch').textContent = watching ? 'Stop watching' : 'Watch Stockfish vs model';
+  $('watch').disabled = busy && !watching;
   $('error').hidden = !error; $('error').textContent = error;
-  $('retry').hidden = !error || watching || !state || state.over || state.turn === human;
+  $('retry').hidden = !error || watchGame || !state || state.over || state.turn === human;
   $('retry').disabled = busy;
   let heading = 'Your move', detail = `You are playing ${human}.`;
   if (state?.over) {
-    heading = state.result === '1/2-1/2' ? 'Draw' : ((state.result === '1-0') === (human === 'white') ? 'You win' : 'Model wins');
+    heading = state.result === '1/2-1/2' ? 'Draw'
+      : watchGame ? (state.result === '1-0' ? 'Model wins' : 'Stockfish wins')
+      : ((state.result === '1-0') === (human === 'white') ? 'You win' : 'Model wins');
     detail = state.reason + '. Start a new game to play again.';
   } else if (error) { heading = 'Move interrupted'; detail = watching || state?.turn !== human ? 'Retry when the server is ready.' : 'Try your move again.'; }
-  else if (watching) { heading = 'Stockfish vs model'; detail = 'The model plays White, Stockfish plays Black.'; }
+  else if (watchGame) {
+    heading = 'Stockfish vs model';
+    detail = watching ? 'The model plays White, Stockfish plays Black.' : 'Watching stopped. Start a new game to play.';
+  }
   else if (busy) {
     heading = !state ? 'Loading model...' : state.turn !== human ? 'Model is thinking...' : 'Loading...';
     detail = browserMode && !state ? 'First load can take a minute. Keep this tab open.' : 'Searching with your local checkpoint.';
@@ -195,7 +201,7 @@ function render() {
 }
 
 function select(square) {
-  if (busy || watching || !state || state.over || state.turn !== human || $('promotion').open) return;
+  if (busy || watchGame || !state || state.over || state.turn !== human || $('promotion').open) return;
   focusSquare = square;
   const moves = state.legal.filter(m => m.slice(0, 2) === selected && m.slice(2, 4) === square);
   if (moves.length) {
@@ -247,7 +253,7 @@ async function update(moves) {
 
 function newGame() {
   if (busy) return;
-  watching = false;
+  watching = watchGame = false;
   human = $('side').value; focusSquare = human === 'white' ? 'e2' : 'e7'; lastNodes = null;
   state = null; update([]);
 }
@@ -262,8 +268,10 @@ $('retry').onclick = () => update(state.moves);
 $('watch').onclick = () => {
   if (browserMode) return;
   if (watching) { watching = false; render(); return; }
-  watching = true;
-  update(state && !state.over ? state.moves : []);
+  if (busy) return;
+  watching = watchGame = true;
+  state = null; lastNodes = null;
+  update([]);
 };
 newGame();
 </script>
