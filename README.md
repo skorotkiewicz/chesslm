@@ -263,7 +263,8 @@ Different seeds can still produce repeated openings, and match testing is
 needed to establish an Elo rating. A tiny distilled model should not be expected
 to match Stockfish.
 
-### Provisional Elo estimate
+<details>
+<summary id="estimate-elo">Provisional Elo estimate</summary>
 
 ```sh
 python estimate_elo.py --model model.npz --games 40 \
@@ -293,6 +294,7 @@ bounds, but cannot calibrate the opponent's rating.
 Both players claim available draws. `--max-plies 400` limits each game, including
 its opening. Games that reach the cap without an outcome are unfinished, not
 draws. Any unfinished game or incomplete schedule suppresses the estimate.
+</details>
 
 ## Development
 
