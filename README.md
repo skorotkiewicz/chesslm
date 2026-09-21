@@ -263,6 +263,37 @@ Different seeds can still produce repeated openings, and match testing is
 needed to establish an Elo rating. A tiny distilled model should not be expected
 to match Stockfish.
 
+### Provisional Elo estimate
+
+```sh
+python estimate_elo.py --model model.npz --games 40 \
+  --opponent-elo 1320 --sf-time 0.1 \
+  --depth 3 --max-nodes 20000 --quiescence-depth 4
+```
+
+This runs paired games against strength-limited Stockfish. Each pair uses the
+same opening with colors reversed. `--games` must be even. Draws count as half a
+point. Try a stronger opponent if the model wins nearly every game.
+
+The script prints JSON lines: settings and checkpoint hash, each game's moves
+and result, then a summary. It does not change the checkpoint or write files.
+Ctrl+C prints a partial summary and exits with code 130. Completed games remain
+in the output. `--seed` controls opening selection, not Stockfish's randomness.
+
+The estimate uses `opponent_elo + 400 * log10(score / (1 - score))`.
+It assumes Stockfish's configured rating is accurate for these conditions, which
+has not been established. Different search budgets and hardware affect results.
+**This is not a FIDE, Chess.com, or Lichess rating.**
+
+The conservative 95% bounds assume independent opening pairs and do not include
+uncertainty in the opponent's rating. A `null` bound means that side is unbounded.
+All-win or all-loss runs have no finite point estimate. More games can narrow the
+bounds, but cannot calibrate the opponent's rating.
+
+Both players claim available draws. `--max-plies 400` limits each game, including
+its opening. Games that reach the cap without an outcome are unfinished, not
+draws. Any unfinished game or incomplete schedule suppresses the estimate.
+
 ## Development
 
 From the project root, in an environment containing `requirements.txt`, run:
@@ -297,6 +328,7 @@ training machine.
 | --- | --- |
 | [`chesslm.py`](chesslm.py) | Model, search, data generation, training, and benchmark CLI |
 | [`chess_game.py`](chess_game.py) | Tkinter desktop game |
+| [`estimate_elo.py`](estimate_elo.py) | Paired Stockfish matches and a nominal Elo estimate with uncertainty bounds |
 | [`web/chess_web.py`](web/chess_web.py) | Local HTTP server and validated game API |
 | [`web/chess_web.html`](web/chess_web.html) | Browser chess board |
 | [`tests/test_chess_web.py`](tests/test_chess_web.py) | HTTP, rule, request-validation, and static-build checks |
@@ -308,6 +340,7 @@ training machine.
 | [`requirements.txt`](requirements.txt) | Runtime dependencies |
 | [`tests/test_chesslm.py`](tests/test_chesslm.py) | Model and search checks |
 | [`tests/test_chess_game.py`](tests/test_chess_game.py) | Desktop game checks |
+| [`tests/test_estimate_elo.py`](tests/test_estimate_elo.py) | Elo calculation, uncertainty, and match-rule checks |
 
 ## License
 
