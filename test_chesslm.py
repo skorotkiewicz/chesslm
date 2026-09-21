@@ -82,12 +82,33 @@ class ChessTests(unittest.TestCase):
         board = chess.Board()
         before = board.fen()
         with patch("chess.engine.SimpleEngine.popen_uci", side_effect=AssertionError("Engine called")):
-            for budget in (1, 100):
-                move, nodes = choose_move(board, self.model, depth=3, max_nodes=budget)
-                self.assertIn(move, board.legal_moves)
-                self.assertLessEqual(nodes, budget)
-                self.assertEqual(board.fen(), before)
-                self.assertEqual(board.move_stack, [])
+            for quiet in (1, 4, 8):
+                for budget in (1, 100):
+                    move, nodes = choose_move(board, self.model, depth=3, max_nodes=budget,
+                                              quiescence_depth=quiet)
+                    self.assertIn(move, board.legal_moves)
+                    self.assertLessEqual(nodes, budget)
+                    self.assertEqual(board.fen(), before)
+                    self.assertEqual(board.move_stack, [])
+
+    def test_quiescence_depth(self):
+        # The four-ply horizon overvalues Nxe3. Stockfish independently rates
+        # Nxe3 about 250 cp worse than Kg8; tests need no engine process.
+        board = board_from_fen("4r2k/p3r2p/6p1/7b/2RN2n1/P3PN1R/1P3P2/4K3 b - - 5 29")
+        before = board.fen()
+        default = choose_move(board, self.model, depth=1)
+        shallow = choose_move(board, self.model, depth=1, quiescence_depth=4)
+        deep = choose_move(board, self.model, depth=1, quiescence_depth=8)
+        self.assertEqual(default, shallow)
+        self.assertEqual(shallow[0].uci(), "g4e3")
+        self.assertEqual(deep[0].uci(), "h8g8")
+        self.assertLess(shallow[1], deep[1])
+        self.assertLess(deep[1], 20000)  # Completed search, not a budget fallback.
+        self.assertEqual(board.fen(), before)
+        self.assertEqual(board.move_stack, [])
+        for invalid in (0, -1):
+            with self.assertRaises(ValueError):
+                choose_move(board, self.model, quiescence_depth=invalid)
 
     def test_mate_for_both_colors(self):
         white = board_from_fen("7k/5Q2/6K1/8/8/8/8/8 w - - 0 1")

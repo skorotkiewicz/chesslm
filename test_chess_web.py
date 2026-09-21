@@ -20,7 +20,8 @@ class WebTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # HTTP tests stub only search; rules and the HTTP server are real.
-        cls.server = ChessServer(("127.0.0.1", 0), model=None, depth=1, max_nodes=100)
+        cls.server = ChessServer(("127.0.0.1", 0), model=None, depth=1, max_nodes=100,
+                                 quiescence_depth=8)
         cls.thread = Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
 
@@ -78,6 +79,7 @@ class WebTests(unittest.TestCase):
         self.assertEqual(result["turn"], "white")
         self.assertIn("g1f3", result["legal"])
         search.assert_called_once()
+        self.assertEqual(search.call_args.kwargs, {"quiescence_depth": 8})
         # No shared board: another tab can still start at the initial position.
         status, body, _ = self.request(data={"moves": []})
         self.assertEqual(json.loads(body)["moves"], [])

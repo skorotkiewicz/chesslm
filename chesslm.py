@@ -217,15 +217,15 @@ def move_order(board, move):
     return (10 * PIECE_VALUES[victim or 0] - PIECE_VALUES[attacker] if board.is_capture(move) else 0) + PIECE_VALUES[move.promotion or 0]
 
 
-def choose_move(board, model, depth=3, max_nodes=20000):
+def choose_move(board, model, depth=3, max_nodes=20000, quiescence_depth=4):
     """Iterative alpha-beta with bounded quiescence. Never calls Stockfish."""
-    if depth < 1 or max_nodes < 1:
-        raise ValueError("Depth and node budget must be positive")
+    if depth < 1 or max_nodes < 1 or quiescence_depth < 1:
+        raise ValueError("Depth, node budget, and quiescence depth must be positive")
     if terminal(board, 0) is not None:
         return None, 0
     nodes = 0
 
-    def search(remaining, alpha, beta, ply, quiet=4):
+    def search(remaining, alpha, beta, ply, quiet=quiescence_depth):
         nonlocal nodes
         if nodes >= max_nodes:
             raise NodeLimit
@@ -236,7 +236,7 @@ def choose_move(board, model, depth=3, max_nodes=20000):
         in_check = board.is_check()
         if remaining <= 0:
             score = float(model.predict(features(board))) * 1000 * (1 if board.turn else -1)
-            # ponytail: bounded quiescence can miss long tactics; extend with a larger search budget.
+            # ponytail: longer tactics can exceed this cap; raise quiescence_depth and max_nodes.
             if quiet <= 0:
                 return score
             if not in_check:
@@ -280,7 +280,8 @@ def choose_move(board, model, depth=3, max_nodes=20000):
 
 def play(args):
     board = board_from_fen(args.fen)
-    move, nodes = choose_move(board, Model.load(args.model), args.depth, args.max_nodes)
+    move, nodes = choose_move(board, Model.load(args.model), args.depth, args.max_nodes,
+                              quiescence_depth=args.quiescence_depth)
     print(json.dumps({"move": move.uci() if move else None, "nodes": nodes}))
 
 
@@ -294,7 +295,8 @@ def benchmark(args):
         engine.configure({"Threads": args.threads, "Hash": args.hash_mb})
         for row in rows:
             board = board_from_fen(row["fen"])
-            move, _ = choose_move(board, model, args.depth, args.max_nodes)
+            move, _ = choose_move(board, model, args.depth, args.max_nodes,
+                                  quiescence_depth=args.quiescence_depth)
             if move is None:
                 continue
             limit = chess.engine.Limit(nodes=args.nodes)
@@ -347,6 +349,8 @@ def main():
         sub.add_argument("--model", default="model.npz")
         sub.add_argument("--depth", type=positive, default=3)
         sub.add_argument("--max-nodes", type=positive, default=20000)
+        sub.add_argument("--quiescence-depth", type=positive, default=4,
+                         help="Maximum extra tactical plies, within --max-nodes (default: 4)")
     args = parser.parse_args()
     if args.command == "train" and (not np.isfinite(args.learning_rate) or args.learning_rate <= 0):
         parser.error("Learning rate must be finite and positive")

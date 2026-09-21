@@ -20,7 +20,7 @@ class GameTests(unittest.TestCase):
         worker = patch("chess_game.Thread")
         self.worker = worker.start()
         self.addCleanup(worker.stop)
-        self.game = ChessGame(self.root, model=None)
+        self.game = ChessGame(self.root, model=None, quiescence_depth=8)
 
     def click(self, square):
         x, y = self.game.square_center(square)
@@ -83,6 +83,14 @@ class GameTests(unittest.TestCase):
         self.assertFalse(game.thinking)
         self.assertIn("AI error: test failure", game.status.get())
         self.assertEqual(str(game.restart["state"]), "normal")
+
+    def test_search_quiescence_depth(self):
+        board = self.game.board.copy()
+        move = chess.Move.from_uci("e2e4")
+        with patch("chess_game.choose_move", return_value=(move, 10)) as search:
+            self.game.search(board)
+        search.assert_called_once_with(board, None, 3, 20000, quiescence_depth=8)
+        self.assertEqual(self.game.results.get_nowait(), (move, None))
 
     def test_keyboard_selection(self):
         self.game.on_key(SimpleNamespace(keysym="Return"))

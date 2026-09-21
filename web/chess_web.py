@@ -30,8 +30,10 @@ ASSETS = {"/neko.js": ("neko.js", "application/javascript")}
 
 
 class ChessServer(ThreadingHTTPServer):
-    def __init__(self, address, model, depth=3, max_nodes=20000, engine=ENGINE, sf_nodes=10000):
+    def __init__(self, address, model, depth=3, max_nodes=20000, engine=ENGINE, sf_nodes=10000,
+                 quiescence_depth=4):
         self.model, self.depth, self.max_nodes = model, depth, max_nodes
+        self.quiescence_depth = quiescence_depth
         self.engine_path, self.sf_nodes = engine, sf_nodes
         # ponytail: one CPU search at a time; use a bounded worker pool for multi-user hosting.
         self.search_slot = BoundedSemaphore(1)
@@ -108,7 +110,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send(503, {"error": "Model is busy in another tab. Try again shortly."})
                 return
             try:
-                move, nodes = choose_move(board, self.server.model, self.server.depth, self.server.max_nodes)
+                move, nodes = choose_move(board, self.server.model, self.server.depth, self.server.max_nodes,
+                                          quiescence_depth=self.server.quiescence_depth)
                 if move not in board.legal_moves:
                     raise ValueError("Search returned an illegal move")
                 board.push(move)
@@ -141,6 +144,8 @@ def main():
     parser.add_argument("--port", type=positive, default=8000)
     parser.add_argument("--depth", type=positive, default=3)
     parser.add_argument("--max-nodes", type=positive, default=20000)
+    parser.add_argument("--quiescence-depth", type=positive, default=4,
+                        help="Maximum extra tactical plies, within --max-nodes (default: 4)")
     parser.add_argument("--engine", type=Path, default=ENGINE)
     parser.add_argument("--sf-nodes", type=positive, default=10000)
     args = parser.parse_args()
@@ -149,7 +154,7 @@ def main():
     try:
         model = Model.load(args.model)
         with ChessServer(("127.0.0.1", args.port), model, args.depth, args.max_nodes,
-                         args.engine, args.sf_nodes) as server:
+                         args.engine, args.sf_nodes, quiescence_depth=args.quiescence_depth) as server:
             print(f"Open http://127.0.0.1:{args.port} | model: {args.model.name}", flush=True)
             try:
                 server.serve_forever()

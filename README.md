@@ -107,8 +107,8 @@ The Python server loads `model.npz` beside the script and performs inference on
 CPU. The browser does not download the model. No Stockfish, training, external
 assets, or JavaScript packages are needed. Tkinter is not required.
 
-Use `--model /path/to/model.npz`, `--port 8080`, `--depth 3`, or
-`--max-nodes 20000` to change the defaults. The server preserves move history for
+Use `--model /path/to/model.npz`, `--port 8080`, `--depth 3`,
+`--max-nodes 20000`, or `--quiescence-depth 4` to change the defaults. The server preserves move history for
 repetition draws and validates every move. Games are limited to 1000 submitted
 plies. One search runs at a time; another tab can retry if the model is busy.
 
@@ -173,7 +173,7 @@ server. CLI model paths are relative to your working directory.
 | Network | One 128-unit tanh hidden layer, learning a correction to a fixed material evaluator |
 | Target | White's evaluation, transformed with `tanh(centipawns / 600)` |
 | Training | Mean squared error with Adam; save the weights with the lowest validation loss |
-| Search | Iterative deepening, alpha-beta pruning, capture ordering, and four quiescence plies |
+| Search | Iterative deepening, alpha-beta pruning, capture ordering, and configurable quiescence depth, default four plies |
 | Runtime | NumPy and python-chess on CPU |
 
 The weight size excludes the NPZ header, Python, NumPy, and process memory.
@@ -182,6 +182,22 @@ A node limit can leave only a shallow completed search iteration. If none
 finishes, search returns a legal fallback move. Long tactics remain a limitation.
 The game and search recognize automatic draws but do not implement optional draw
 claims. A FEN does not include prior repetition history.
+
+`--quiescence-depth` sets the maximum extra tactical plies after the main search
+reaches `--depth`. One ply is one player's move. The value must be positive and
+defaults to 4. The option works in the desktop game, local web server, and CLI
+`play` and `benchmark` commands. The static browser game keeps the default.
+
+For a deeper tactical search on the local server, try:
+
+```sh
+python web/chess_web.py --depth 3 --max-nodes 50000 --quiescence-depth 8
+```
+
+All main-search and quiescence nodes share the `--max-nodes` cap. Deeper quiescence
+can detect longer tactical sequences, but it can also leave less budget for the
+main search. It does not guarantee stronger play or eliminate missed tactics.
+Increasing `--max-nodes` alone does not raise the quiescence-depth limit.
 
 ## Training
 

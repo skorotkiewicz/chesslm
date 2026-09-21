@@ -24,9 +24,10 @@ INK = "#202721"
 
 
 class ChessGame:
-    def __init__(self, root, model, human=chess.WHITE, depth=3, max_nodes=20000):
+    def __init__(self, root, model, human=chess.WHITE, depth=3, max_nodes=20000, quiescence_depth=4):
         self.root, self.model = root, model
         self.human, self.depth, self.max_nodes = human, depth, max_nodes
+        self.quiescence_depth = quiescence_depth
         self.results = Queue()
         self.thinking = False
         self.cursor = None
@@ -150,7 +151,8 @@ class ChessGame:
     def search(self, board):
         # Workers only use a board copy and queue, never Tk objects.
         try:
-            move, _ = choose_move(board, self.model, self.depth, self.max_nodes)
+            move, _ = choose_move(board, self.model, self.depth, self.max_nodes,
+                                  quiescence_depth=self.quiescence_depth)
             self.results.put((move, None))
         except Exception as error:
             self.results.put((None, str(error)))
@@ -213,6 +215,8 @@ def main():
     parser.add_argument("--color", choices=("white", "black"), default="white")
     parser.add_argument("--depth", type=positive, default=3)
     parser.add_argument("--max-nodes", type=positive, default=20000)
+    parser.add_argument("--quiescence-depth", type=positive, default=4,
+                        help="Maximum extra tactical plies, within --max-nodes (default: 4)")
     args = parser.parse_args()
     try:
         model = Model.load(args.model)
@@ -222,7 +226,8 @@ def main():
         root = tk.Tk()
     except tk.TclError as error:
         parser.exit(1, f"Cannot open a desktop window: {error}\n")
-    ChessGame(root, model, human=args.color == "white", depth=args.depth, max_nodes=args.max_nodes)
+    ChessGame(root, model, human=args.color == "white", depth=args.depth, max_nodes=args.max_nodes,
+              quiescence_depth=args.quiescence_depth)
     root.mainloop()
 
 
