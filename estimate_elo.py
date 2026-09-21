@@ -1,4 +1,10 @@
-"""Estimate nominal Elo against strength-limited Stockfish, not a human rating."""
+"""
+Estimate nominal Elo against strength-limited Stockfish, not a human rating.
+
+   python estimate_elo.py --model model.npz --games 40 \
+     --opponent-elo 1320 --sf-time 0.1 \
+     --depth 3 --max-nodes 20000 --quiescence-depth 4
+"""
 import argparse
 from collections import Counter
 import hashlib
