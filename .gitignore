@@ -4,3 +4,4 @@ __pycache__/
 *.jsonl
 stockfish/
 _site/
+*.bak
